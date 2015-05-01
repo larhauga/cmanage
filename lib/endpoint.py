@@ -25,6 +25,16 @@ class Endpoint(Base):
         self.name = name
         self.service = service
 
+    def get_state(self):
+        state = {}
+        state['name'] = self.name
+        state['ip'] = self.ip
+        state['port'] = self.port
+        state['url'] = self.url
+        state['stage'] = self.stage.name
+        state['service'] = self.service.name
+        return state
+
 
 if __name__ == '__main__':
     e = endpoint("hest")
