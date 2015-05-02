@@ -24,8 +24,17 @@ else:
     logging.error("Missing logger configuration file %s" % logconfigpath)
     exit(1)
 
+containerpath = path.join(basepath, 'etc/%s.conf' % config.get('main', 'containerbackend'))
+
+if path.isfile(containerpath):
+    containerconfig = ConfigParser.ConfigParser()
+    containerconfig.read(containerpath)
+
 def get_config():
     return config
 
 def get_logger():
     return logging
+
+def get_container_config():
+    return containerconfig
