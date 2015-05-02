@@ -41,21 +41,18 @@ class Service(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
-    port = Column(Integer, nullable=False, unique=True)
     parents = relationship('Service_tree', backref='child', primaryjoin=id==Service_tree.child_id)
     childs = relationship('Service_tree', backref='parent', primaryjoin=id==Service_tree.parent_id)
 
     stacks = relationship('Stack', backref=backref('service', order_by=id))
     endpoints = relationship('Endpoint', backref=backref('service'))
 
-    def __init__(self, name, port):
+    def __init__(self, name): #, port):
         self.name = name
-        self.port = port
 
     def get_state(self):
         state = {}
         state['name'] = self.name
-        state['port'] = self.port
         state['stacks'] = []
         for stack in self.stacks:
             state['stacks'].append(stack.get_state())
