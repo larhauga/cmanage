@@ -9,13 +9,13 @@ from exceptions import NotImplementedError
 from lib import config as cfg
 from lib import init
 
-from lib.service import Service
+from lib.service import Service, Service_tree
 from lib.stack import Stack
-from lib.tree import Tree
+#from lib.tree import Tree
 from lib.container import Container
 from lib.endpoint import Endpoint
-from lib.stage import Stage
-import lib.lib_docker as docker
+#from lib.stage import Stage
+#import lib.lib_docker as docker
 
 config = cfg.get_config()
 logging = cfg.get_logger()
@@ -211,8 +211,24 @@ def replace(service, position, direction, stack=None):
 
 
 # Tree operations
-def create_tree(relations):
-    raise NotImplementedError()
+def create_tree(endpoint, relations):
+    """Create tree from list of named dicts
+    Arguments:
+        endpoint: object of the endpoint or name
+        relations: string or list of dict: {parent, child, stackref}
+    """
+    e = None
+    if endpoint == Endpoint:
+        e = endpoint
+    else:
+        e = session.query(Endpoint).filter(Endpoint.name == endpoint).first()
+
+    if type(relations) == str:
+        relations = eval(relations)
+    for item in relations:
+        tree_node = Service_tree(item['parent'], item['child'], e)
+        session.add(tree_node)
+    session.commit()
 
 
 def view_tree(service):
