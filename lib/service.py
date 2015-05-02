@@ -6,12 +6,28 @@ from sqlalchemy.orm import relationship, backref
 import base
 Base = base.Base
 
-parents = Table(
-    'parents_rel', base.Base.metadata,
-    Column('parent_id', Integer, ForeignKey('service.id'), primary_key=True),
-    Column('service_id', Integer, ForeignKey('service.id'), primary_key=True),
-    Column('endpoint_id', Integer, ForeignKey('endpoint.id'))
-)
+# http://docs.sqlalchemy.org/en/latest/orm/basic_relationships.html#association-pattern
+# http://stackoverflow.com/questions/25958963/self-referential-association-relationship-sqlalchemy
+class Service_tree(Base):
+    __tablename__ = 'service_tree'
+    parent_id = Column(Integer, ForeignKey('service.id'), primary_key=True)
+    child_id = Column(Integer, ForeignKey('service.id'), primary_key=True)
+    endpoint_id = Column(Integer, ForeignKey('endpoint.id'))
+    stackpos = Column(Integer)
+    endpoint = relationship('Endpoint', backref=backref('service_tree'))
+    def __init__(self, parent, child, endpoint, stackpos):
+        self.parent = parent
+        self.child = child
+        self.stackpos = stackpos
+        self.endpoint = endpoint
+
+    def get_state(self):
+        state = {}
+        state['parent'] = self.parent.name
+        state['child'] = self.child.name
+        state['endpoint'] = self.endpoint.name
+        state['stackpos'] = self.stackpos
+        return state
 
 
 class Service(Base):
@@ -20,10 +36,8 @@ class Service(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
     port = Column(Integer, nullable=False, unique=True)
-    childs = relationship('Service', secondary=parents,
-                          primaryjoin=id == parents.c.parent_id,
-                          secondaryjoin=id == parents.c.service_id,
-                          backref='parents')
+    parents = relationship('Service_tree', backref='child', primaryjoin=id==Service_tree.child_id)
+    childs = relationship('Service_tree', backref='parent', primaryjoin=id==Service_tree.parent_id)
 
     stacks = relationship('Stack', backref=backref('service', order_by=id))
     endpoints = relationship('Endpoint', backref=backref('service'))
@@ -39,8 +53,8 @@ class Service(Base):
         state['stacks'] = []
         for stack in self.stacks:
             state['stacks'].append(stack.get_state())
-        state['parent'] = [parent.name for parent in self.parents]
-        state['childs'] = [child.name for child in self.childs]
+        state['parent'] = [parent.get_state() for parent in self.parents]
+        state['childs'] = [child.get_state() for child in self.childs]
         return state
 
 
