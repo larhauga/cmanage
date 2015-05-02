@@ -3,7 +3,8 @@
 
 # Script for defining base functions
 from sqlalchemy.exc import IntegrityError
-from sys import exit
+from terminaltables import AsciiTable
+from exceptions import NotImplementedError
 
 from lib import config as cfg
 from lib import init
@@ -23,19 +24,17 @@ session = init.init()
 
 
 # Service functions
-def create_service(name, port):
+def create_service(name):
     """Creates a new service
     Arguments:
         name: Name of the new service
-        port: unique port
     Constraints:
         name: unique
-        port: unique
     """
     # HERE NEEDS CHECK OF STATE
     if not session.query(Service).filter(Service.name == name).first():
         try:
-            s = Service(name, port)
+            s = Service(name)
             session.add(s)
             session.commit()
         except IntegrityError as e:
@@ -49,17 +48,33 @@ def get_service(name):
     """Searches after the service name"""
     return session.query(Service).filter(Service.name == name).first()
 
-def view_service(service):
-    """  """
-    pass
+def view_service(name):
+    """Prints out information about one service based on its name"""
+    view_services(filterquery=session.query(Service).filter(Service.name == name))
 
-def view_services():
-    pass
+def view_services(filterquery=None):
+    """Prints out list of services and its relevant information"""
+    table = []
+    table.append(["Service Name", "Stacks", "Containers", "Parent S", "Child S", "Endpoints" ])
+    if filterquery:
+        services = filterquery.all()
+        #services = session.query(filterquery).all()
+    else:
+        services = session.query(Service).all()
 
-def list_services():
-    print "Name, port"
-    for service in session.query(Service).all():
-        print service.name, service.port
+    for service in services:
+        state = service.get_state()
+        parents = [p['parent'] for p in state['parent']]
+        children = [c['child'] for c in state['childs']]
+        table.append([str(state['name']),
+                      "\n".join([ s['name'] for s in state['stacks'] if s]),
+                      str(sum([len(x['container']) for x in state['stacks']])),
+                      "\n".join(parents),
+                      "\n".join(children),
+                      "\n".join(state['endpoints'])])
+    t = AsciiTable(table)
+    t.inner_row_border = True
+    print t.table
 
 
 # Stack functions
@@ -80,11 +95,22 @@ def update_stack(service):
     Dont know what this will do yet.
     Intended to add one container version on a stack...
     """
-    pass
+    raise NotImplementedError()
 
-def view_stack(service):
-    """View the stack container version and position and tree points"""
-    pass
+def view_stack(service, stackname=None):
+    """View the stack container version and position and tree points
+    Arguments:
+        service: service object
+        stackname: Name of stack if only one stack should be viewed
+    """
+    table_data = [['Stackname', 'host', 'image', 'conatiners']]
+    for stack in service.stacks:
+        table_data.append([str(stack.name), str(stack.host), str(stack.image), "\n".join([c.name for c in stack.container])])
+
+    print table_data
+    table = AsciiTable(table_data)
+    table.inner_row_border = True
+    print table.table
 
 
 # Endpoint functions
@@ -94,7 +120,26 @@ def make_endpoint(service):
         service: service object
     Constraints:
     """
-    pass
+    raise NotImplementedError()
+
+def view_endpoint(endpointname):
+    """Prints out a single endpoint"""
+    table_data = [['Endpoint name', 'ip', 'pubport', 'url', 'mainservice', 'tree']]
+    endpoint = session.query(Endpoint).filter(Endpoint.name == endpointname).first()
+    subtree = view_endpoint_tree(endpoint)
+    table_data.append([str(endpoint.name), str(endpoint.ip), str(endpoint.pubport), str(endpoint.url), str(endpoint.service.name), subtree])
+    tree = AsciiTable(table_data)
+    tree.inner_row_border = True
+    print tree.table
+
+def view_endpoint_tree(endpoint):
+    subtree_data = [['parent', 'child', 'stackposition']]
+    for tree in endpoint.service_tree:
+        state = tree.get_state()
+        subtree_data.append([str(state['parent']), str(state['child']), str(state['stackpos'])])
+    subtree = AsciiTable(subtree_data)
+    return subtree.table
+
 
 def view_endpoints():
     """Lists the endpoints defined
@@ -102,18 +147,27 @@ def view_endpoints():
         *sort by service
         *sort by stage
     """
-    pass
+    table_data = [['Endpoint name', 'ip', 'pubport', 'url', 'mainservice', 'tree']]
+    for endpoint in session.query(Endpoint).all():
+        subtree = view_endpoint_tree(endpoint)
+        table_data.append([str(endpoint.name), str(endpoint.ip), str(endpoint.pubport), str(endpoint.url), str(endpoint.service.name), subtree])
+    table = AsciiTable(table_data)
+    table.inner_row_border = True
+    print table.table
 
 
 # Container functions
-def push_on_stack(service, stackname, version):
+def push_on_stack(stack, version):
     """Push new version of a container on stack
     Arguments:
-        service: service object
-        stackname: which stack to update
+        stack: stack object
         version: new version of image
+    Returns:
+        the new container
     """
-    pass
+    # Container(stack, version, image=None, name='app')
+    c = Container(stack, version)
+    return c
 
 def pop(service, stack, position=0):
     """Removes a container in the specific position
@@ -136,19 +190,28 @@ def pop(service, stack, position=0):
 
     session.commit()
 
-def replace(service, stack, position, direction):
+def replace(service, position, direction, stack=None):
     """Replaces a container on a stack, with neighbour
     Arguments:
         service: service object
-        stack: name of stack
         position: position of stack to replace
         direction: which of the surrounding containers to copy
+    kwargs:
+        stack: name of stack, if only one stack
     """
-    pass
+    raise NotImplementedError()
+    if stack:
+        pass
+
+
+# Tree operations
+def create_tree(relations):
+    raise NotImplementedError()
+
 
 def view_tree(service):
     """Shows a tree"""
-    pass
+    raise NotImplementedError()
 
 
 # State
@@ -197,7 +260,13 @@ def get_container_state(container=None, containername=None):
         return None
 
 if __name__ == '__main__':
-    list_services()
+    view_service('webapp1')
+    #view_services()
+    #s = get_service('WebFront')
+    #view_stack(s)
+
+    #view_endpoint('alabi')
+    #view_endpoints()
     #s = create_service('WebFront', 20202)
     #print s
     #print s.name
