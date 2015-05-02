@@ -58,6 +58,7 @@ class Service(Base):
             state['stacks'].append(stack.get_state())
         state['parent'] = [parent.get_state() for parent in self.parents]
         state['childs'] = [child.get_state() for child in self.childs]
+        state['endpoints'] = [e.name for e in self.endpoints]
         return state
 
 
