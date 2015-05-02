@@ -30,8 +30,8 @@ def init(create=False):
     return session
 
 
-def base_test_data(session, servicename, port):
-    s = Service(servicename, port)
+def base_test_data(session, servicename,pubport):
+    s = Service(servicename)
     for i in range(1,3):
         webstack = Stack(s, 'image')
         session.add(s)
@@ -44,7 +44,7 @@ def base_test_data(session, servicename, port):
     session.commit()
 
     s = session.query(Service).filter(Service.name == servicename).first()
-    e = Endpoint('web', s)
+    e = Endpoint('web', s, pubport)
     session.add(e)
     session.commit()
 
@@ -63,11 +63,11 @@ def get_state(session, service):
 
 def main():
     session = init(create=True)
-    base_test_data(session, 'WebFront', 10000)
-    base_test_data(session, 'webapp1', 10001)
+    base_test_data(session, 'webapp1', 1010)
+    base_test_data(session, 'webapp2', 1020)
 
-    get_state(session, 'WebFront')
     get_state(session, 'webapp1')
+    get_state(session, 'webapp2')
 
 if __name__ == '__main__':
     main()
