@@ -18,15 +18,17 @@ class Endpoint(Base):
     url = Column(String)
     stackpointer = Column(Integer)#, nullable=False)  # Inteneded as default placement on stack
     service_id = Column(Integer, ForeignKey('service.id'), nullable=False)
-    stage_id = Column(Integer, ForeignKey('stage.id'))
-    stage = relationship('Stage', backref=backref('endpoint'))
+    stage = Column(String)
+    #stage_id = Column(Integer, ForeignKey('stage.id'))
+    #stage = relationship('Stage', backref=backref('endpoint'))
 
-    def __init__(self, name, service, pubport, stackpointer=None):
+    def __init__(self, name, service, pubport, stackpointer=None, stage=None):
         self.name = "%s-endpoint-%s" % (service.name, name)
         self.service = service
         self.pubport = pubport
         if stackpointer:
             self.stackpointer = stackpointer
+        self.stage = stage
 
     def get_state(self):
         state = {}
@@ -34,7 +36,7 @@ class Endpoint(Base):
         state['ip'] = self.ip
         state['pubport'] = self.pubport
         state['url'] = self.url
-        state['stage'] = self.stage.name
+        state['stage'] = self.stage
         state['service'] = self.service.name
         return state
 
