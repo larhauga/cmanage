@@ -22,7 +22,7 @@ class Endpoint(Base):
     stage = relationship('Stage', backref=backref('endpoint'))
 
     def __init__(self, name, service, pubport, stackpointer=None):
-        self.name = name
+        self.name = "%s-endpoint-%s" % (service.name, name)
         self.service = service
         self.pubport = pubport
         if stackpointer:
