@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, text
 from sqlalchemy.orm import relationship, backref
+from exceptions import TypeError
 
 import base
 Base = base.Base
@@ -15,11 +16,16 @@ class Service_tree(Base):
     endpoint_id = Column(Integer, ForeignKey('endpoint.id'))
     stackpos = Column(Integer)
     endpoint = relationship('Endpoint', backref=backref('service_tree'))
-    def __init__(self, parent, child, endpoint, stackpos):
+    def __init__(self, parent, child, endpoint, stackpos=None):
         self.parent = parent
         self.child = child
-        self.stackpos = stackpos
         self.endpoint = endpoint
+        if not stackpos and endpoint.stackpointer:
+            self.stackpos = endpoint.stackpointer
+        elif not stackpos and not endpoint.stackpointer:
+            raise TypeError('stackpos not set')
+        else:
+            self.stackpos = stackpos
 
     def get_state(self):
         state = {}
