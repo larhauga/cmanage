@@ -88,6 +88,8 @@ def create_stack(service, image, host):
     """
     # HERE NEEDS CONSTRAINTS CHECK
     stack = Stack(service, image, host)
+    session.add(stack)
+    session.commit()
     return stack
 
 def update_stack(service):
@@ -114,13 +116,17 @@ def view_stack(service, stackname=None):
 
 
 # Endpoint functions
-def make_endpoint(service):
+def make_endpoint(service, name, publicport, stackpointer=None):
     """Create and connect a endpoint to a service
     Arguments:
+        name: additional name: "service-endpoint-%s"
         service: service object
+        publicport: public port
+        stackpointer: default place on stack
     Constraints:
     """
-    raise NotImplementedError()
+    e = Endpoint(name, service, publicport, stackpointer)
+    return e
 
 def view_endpoint(endpointname):
     """Prints out a single endpoint"""
@@ -217,7 +223,10 @@ def view_tree(service):
 # State
 def get_state():
     """Gets the state of the complete environment"""
-    pass
+    state = {}
+    for service in session.query(Service).all():
+        state[service.name] = service.get_state()
+    return state
 
 def get_service_state(service=None, servicename=None):
     """Gets the state of service and all of its relations"""
