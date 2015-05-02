@@ -3,8 +3,16 @@
 
 from docker import Client
 from requests import ConnectionError
+import config as cfg
+
+config = cfg.get_config()
+cconfig = cfg.get_container_config()
 
 connections = {}
+
+hostnames = cconfig.get('main', 'hostnames').split(',')
+hosts = cconfig.get('main', 'hosts').split(',')
+port = cconfig.get('main', 'port')
 
 
 def connect(host='localhost', base_url='unix://var/run/docker.sock', tls=False):
@@ -14,9 +22,6 @@ def connect(host='localhost', base_url='unix://var/run/docker.sock', tls=False):
             connections[host] = c
         except ConnectionError:
             return None
-    else:
-        return connections[host]
-    return c
 
 
 def get_containers(host):
@@ -48,7 +53,7 @@ def create_container(host, container):
     # hostname, volumes, detached, ports=[1234,134]
     # image: 'name:tag'
     c = connections[host].create_container(image=container.image,
-                                           command=container.cmd,
+                                           #command=container.cmd,
                                            name=container.name)
     return c
 
@@ -67,11 +72,17 @@ def start_container(host, idorname):
     return response
 
 
-def remove_container(host, container):
+def remove_container(host, name):
     """Removes a container from a host
     Arguments:
         host: host to remove container from
         container: container object to remove
     """
-    return connections[host].remove_container(container=container.name,
+    return connections[host].remove_container(container=name,
                                               force=True)
+
+def init():
+    for i in range(0,len(hostnames)):
+        connect(host=hostnames[i], base_url='http://%s:%s' % (hosts[i], str(port)))
+
+init()
