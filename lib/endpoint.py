@@ -3,10 +3,10 @@
 
 from sqlalchemy import Table, Column, Integer, String, MetaData,ForeignKey, text
 from sqlalchemy.orm import relationship, backref
-from sqlalchemy.ext.declarative import declarative_base
 
 import base
 Base = base.Base
+
 
 class Endpoint(Base):
     __tablename__ = 'endpoint'
@@ -14,22 +14,25 @@ class Endpoint(Base):
     id = Column(Integer, primary_key = True)
     name = Column(String)
     ip = Column(String)
-    port = Column(String)
+    pubport = Column(Integer, unique=True, nullable=False)
     url = Column(String)
+    stackpointer = Column(Integer)#, nullable=False)  # Inteneded as default placement on stack
     service_id = Column(Integer, ForeignKey('service.id'), nullable=False)
-    #service = relationship('Service', backref=backref('endpoint'))
     stage_id = Column(Integer, ForeignKey('stage.id'))
     stage = relationship('Stage', backref=backref('endpoint'))
 
-    def __init__(self, name, service):
+    def __init__(self, name, service, pubport, stackpointer=None):
         self.name = name
         self.service = service
+        self.pubport = pubport
+        if stackpointer:
+            self.stackpointer = stackpointer
 
     def get_state(self):
         state = {}
         state['name'] = self.name
         state['ip'] = self.ip
-        state['port'] = self.port
+        state['pubport'] = self.pubport
         state['url'] = self.url
         state['stage'] = self.stage.name
         state['service'] = self.service.name
