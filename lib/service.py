@@ -44,7 +44,7 @@ class Service(Base):
     parents = relationship('Service_tree', backref='child', primaryjoin=id==Service_tree.child_id)
     childs = relationship('Service_tree', backref='parent', primaryjoin=id==Service_tree.parent_id)
 
-    stacks = relationship('Stack', backref=backref('service', order_by=id))
+    stacks = relationship('Stack', backref=backref('service', order_by=id), cascade="delete")
     endpoints = relationship('Endpoint', backref=backref('service'))
 
     def __init__(self, name): #, port):
