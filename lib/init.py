@@ -12,7 +12,6 @@ from stack import Stack
 from container import Container
 from endpoint import Endpoint
 from stage import Stage
-from tree import Tree
 
 logging = cfg.get_logger()
 config = cfg.get_config()
