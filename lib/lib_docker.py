@@ -38,7 +38,7 @@ def pull_image(host, image, version):
         host: hostname of host
         image: image name
         version: image version
-    returns the status
+    returns the status {'status','progressDetail', 'id'}
     """
     status = connections[host].pull('%s:%s' % (image, version))
     return status
@@ -49,6 +49,8 @@ def create_container(host, container):
     Arguments:
         host: hostname of host to start on
         container: container object
+    Returns:
+        dict: {Id: hash, Warnings: None}
     """
     # hostname, volumes, detached, ports=[1234,134]
     # image: 'name:tag'
@@ -66,7 +68,7 @@ def start_container(host, idorname):
     """
     # port_bindings={1111: ('127.0.0.1', 4567)},
     response = connections[host].start(container=idorname,
-                                       # publish_all_ports=False,
+                                       publish_all_ports=True,
                                        restart_policy={'Name': 'always'}
                                        )
     return response
@@ -80,6 +82,30 @@ def remove_container(host, name):
     """
     return connections[host].remove_container(container=name,
                                               force=True)
+
+def image_exists(host, imagetag):
+    """Checks if image is on host
+    Arguments:
+        host: hostname
+        imagetag: name and optional tag of image
+    Returns:
+        true: image exists
+        false: does not exist
+    """
+    images = connections[host].images()
+    for image in images:
+        if imagetag in image['RepoTags']:
+            return True
+    return False
+
+def container_exists(host, name, all=False):
+    """Check if a container with the same name is running on the host
+    """
+    for container in connections[host].containers(all=all):
+        if name in container['Names']:
+            return True
+    return False
+
 
 def init():
     for i in range(0,len(hostnames)):
