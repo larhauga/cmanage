@@ -32,6 +32,18 @@ def get_containers(host):
     return connections[host].containers()
 
 
+def get_container(host, containerid):
+    """Get info about a specifc container
+    Arguments:
+        hostname
+        containerid: hash identifier
+    """
+    containers = get_containers(host)
+    for container in containers:
+        if containerid in container['Id']:
+            return container
+
+
 def pull_image(host, image, version):
     """Pulls the image and version to the host
     Arguments:
@@ -83,6 +95,7 @@ def remove_container(host, name):
     return connections[host].remove_container(container=name,
                                               force=True)
 
+
 def image_exists(host, imagetag):
     """Checks if image is on host
     Arguments:
@@ -98,6 +111,7 @@ def image_exists(host, imagetag):
             return True
     return False
 
+
 def container_exists(host, name, all=False):
     """Check if a container with the same name is running on the host
     """
@@ -105,6 +119,16 @@ def container_exists(host, name, all=False):
         if name in container['Names']:
             return True
     return False
+
+
+def stop_container(host, id):
+    """Stop container"""
+    connections[host].stop(resource_id=id, timeout=1)
+
+
+def remove_container_byid(host, id):
+    """Remove container"""
+    connections[host].remove_container(id)
 
 
 def init():
