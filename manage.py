@@ -3,6 +3,7 @@
 
 import argparse
 from sqlalchemy.exc import IntegrityError
+import requests
 
 #from lib import init
 import basefunc
@@ -10,6 +11,7 @@ from lib import init
 from lib import config as cfg
 config = cfg.get_config()
 rules = cfg.get_rules_config()
+cconfig = cfg.get_container_config()
 
 def create_db(args):
     init.init(create=True)
@@ -139,6 +141,22 @@ def deploy(args):
     if 'containers' in args.type:
         basefunc.deploy_all_containers()
 
+def upstream(args):
+    """Get the upstream versions of a container"""
+    url = "https://registry.hub.docker.com/v1/repositories/%s/tags"
+    service = basefunc.get_service(args.service)
+    if service:
+        if service.stacks:
+            r = requests.get(url % service.stacks[0].image)
+            # THIS IS REALLY INSECURE! Need a fast implementation :)
+            tags = eval(r.text)
+            for tag in tags:
+                print "Tag: %s, layer: %s" % (tag['name'], tag['layer'])
+        else:
+            print "Docker image not defined"
+    else:
+        print "Service not found"
+
 def main(args):
     pass
 
@@ -208,6 +226,10 @@ if __name__ == '__main__':
     parser_deploy.add_argument('-n', '--name', type=str,
                                help='Name of item to deploy')
     parser_deploy.set_defaults(func=deploy)
+
+    parser_upversions = subparser.add_parser('upstream', description='Find upstream versions')
+    parser_upversions.add_argument('service', type=str, help='The version to check versions on')
+    parser_upversions.set_defaults(func=upstream)
     # Extra parameters for push on stack
     #parser.add_argument('-v', '--version', type=str,
                         #help='Versions of new containers. If containers > 1, this must be a list')
