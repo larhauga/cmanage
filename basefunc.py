@@ -15,6 +15,7 @@ from lib.stack import Stack
 from lib.container import Container
 from lib.endpoint import Endpoint
 #from lib.stage import Stage
+from docker.errors import APIError
 import lib.lib_docker as docker
 
 config = cfg.get_config()
@@ -65,14 +66,26 @@ def view_services(filterquery=None):
         #services = session.query(filterquery).all()
     else:
         services = session.query(Service).all()
+    if not services:
+        print "No services met the search"
+        return
 
     for service in services:
         state = service.get_state()
         parents = [p['parent'] for p in state['parent']]
         children = [c['child'] for c in state['childs']]
+        cs = []
+        for stack in state['stacks']:
+            for i, container in enumerate(stack['container']):
+                endpoint = service.tree_on_stack_pointer(i)
+                if endpoint:
+                    cs.append("%s:%s:%s" % (container['name'], container['version'], endpoint.name))
+                else:
+                    cs.append("%s:%s" % (container['name'], container['version']))
+            #cs.extend(["%s:%s" % (c['name'],c['version']) for c in stack['container']])
         table.append([str(state['name']),
                       "\n".join([ s['name'] for s in state['stacks'] if s]),
-                      str(sum([len(x['container']) for x in state['stacks']])),
+                      str("\n".join(cs)),
                       "\n".join(parents),
                       "\n".join(children),
                       "\n".join(state['endpoints'])])
@@ -132,6 +145,10 @@ def make_endpoint(service, name, publicport, stackpointer=None):
     e = Endpoint(name, service, publicport, stackpointer)
     return e
 
+def get_endpoint(name):
+    """Finds an endpoint based on name"""
+    return session.query(Endpoint).filter(Endpoint.name.like(name)).first()
+
 def view_endpoint(endpointname, obj=None):
     """Prints out a single endpoint"""
     table_data = [['Endpoint name', 'ip', 'pubport', 'url', 'mainservice', 'stackpointer', 'tree']]
@@ -172,6 +189,13 @@ def view_endpoints():
     table.inner_row_border = True
     print table.table
 
+
+def switch_stackpointer(endpoint, service, newpointer):
+    """Switch the pointer of an endpoint"""
+    tree = session.query(Service_tree).filter(Service_tree.child == service,
+                                            Service_tree.endpoint == endpoint).first()
+    tree.stackpos = newpointer
+    session.commit()
 
 # Container functions
 def create_containers(stack, versions):
@@ -242,6 +266,13 @@ def pop(service, stack, position=0):
         stack: specific stack or None for all stacks
         position: position on stack to pop
     """
+    if not stack:
+        for stack in service.stacks:
+            if len(stack.container) <= rules.getint('stack','min_containers'):
+                raise StandardError('Not enough containers on stack. Poping not compliant with rules')
+    else:
+        if len(stack.container) <= rules.getint('stack', 'min_containers'):
+            raise StandardError('Not enough containers on specified stack. Not compliant to pop')
     # HERE NEEDS CONSTRAINTS CHECKING
     # HERE NEEDS HAPROXY INTEGRATION
 
@@ -249,9 +280,11 @@ def pop(service, stack, position=0):
         for s in service.stacks:
             c = s.containers.pop(position)
             # HERE NEEDS DOCKER/HAPROXY
+            c.remove_container()
             session.delete(c)
     else:
-        c = stack.containers.pop(position)
+        c = stack.container[position]
+        c.remove_container()
         session.delete(c)
 
     session.commit()
@@ -280,12 +313,12 @@ def view_containers():
     services = session.query(Service).all()
     containers = []
     table = []
-    table.append(['Name', 'image', 'version', 'port'])
+    table.append(['Name', 'image', 'version', 'port', 'containerid'])
     for service in services:
         for stack in service.stacks:
             for container in stack.container:
                 st = container.get_state()
-                table.append([str(st['name']), str(st['image']), str(st['version']), str(st['port'])])
+                table.append([str(st['name']), str(st['image']), str(st['version']), str(st['port']), str(st['containerid'])[0:15]])
 
     t = AsciiTable(table)
     t.inner_row_border = True
@@ -293,11 +326,23 @@ def view_containers():
 
 def remove_all_containers():
     for container in session.query(Container).all():
-        container.remove_container()
+        try:
+            print "Removing container %s from %s" % (container.name, container.stack.host)
+            container.remove_container()
+        except APIError as e:
+            print e.message
+            if 'Not Found' in e.message:
+                print "Container %s not found on host %s" % (container.name, container.stack.host)
+    session.commit()
 
 def deploy_all_containers():
     for container in session.query(Container).all():
-        container.deploy_container()
+        try:
+            container.deploy_container()
+        except APIError as e:
+            if '409 Client Error: Conflict' in e.message:
+                print "Container %s allready running on %s" % (container.name, container.stack.host)
+    session.commit()
 # Tree operations
 def create_tree(endpoint, relations):
     """Create tree from list of named dicts
@@ -317,6 +362,25 @@ def create_tree(endpoint, relations):
         tree_node = Service_tree(item['parent'], item['child'], e)
         session.add(tree_node)
     session.commit()
+
+def add_relation(endpoint, service, parents, childs, stackpointer):
+    """Create a new relation in a service tree based on service
+    Arguments:
+        endpoint: Tree to connect to
+        service: The service to connect
+        parents: the parent services of the service
+        childs: the child of the service
+        stackpointer: optional stack pointer"""
+    # Handle parents
+    trees = []
+    for parent in parents:
+        trees.append(Service_tree(parent, service, endpoint, stackpointer))
+    for child in childs:
+        trees.append(Service_tree(service, child, endpoint, stackpointer))
+
+    session.add_all(trees)
+    session.commit()
+    # HAndle childs
 
 
 def view_tree(service):
