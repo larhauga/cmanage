@@ -66,7 +66,7 @@ def create_container(host, container):
     """
     # hostname, volumes, detached, ports=[1234,134]
     # image: 'name:tag'
-    c = connections[host].create_container(image=container.image,
+    c = connections[host].create_container(image=container.get_version(),
                                            #command=container.cmd,
                                            name=container.name)
     return c
