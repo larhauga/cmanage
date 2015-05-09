@@ -4,6 +4,9 @@ from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, tex
 from sqlalchemy.orm import relationship, backref
 from exceptions import TypeError
 
+import config as cfg
+containerconfig = cfg.get_container_config()
+
 import base
 Base = base.Base
 
@@ -60,6 +63,22 @@ class Service(Base):
         state['childs'] = [child.get_state() for child in self.childs]
         state['endpoints'] = [e.name for e in self.endpoints]
         return state
+
+    def choose_host(self):
+        """Finds out which server a stack should run on based on current stacks
+        Simple implementation. Implement on first host first
+        """
+        hosts = containerconfig.get('main', 'hostnames').split(',')
+        if self.stacks:
+            # if even
+            if len(self.stacks) % 2 == 0:
+                return hosts[0]
+            # if odd
+            elif len(self.stacks) % 2 == 1:
+                return hosts[1]
+        else:
+            # No existing stacks
+            return hosts[0]
 
 
 if __name__ == '__main__':
