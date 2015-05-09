@@ -70,6 +70,7 @@ class Container(Base):
         # state['source_image'] = self.source_image
         # state['ip'] = self.ip
         state['port'] = self.port
+        state['containerid'] = self.containerid
         #state['stage'] = self.stage
         return state
 
@@ -106,6 +107,8 @@ class Container(Base):
             id = self.name
         docker.stop_container(self.stack.host, id)
         docker.remove_container_byid(self.stack.host, id)
+        self.containerid = None
+        self.port = None
 
 if __name__ == '__main__':
     c = container()
