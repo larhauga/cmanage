@@ -37,3 +37,9 @@ class Stack(Base):
         for container in self.container:
             state['container'].append(container.get_state())
         return state
+
+    def get_versions(self):
+        versions = []
+        for container in self.container:
+            versions.append(container.version)
+        return versions
