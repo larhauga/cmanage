@@ -342,6 +342,8 @@ def deploy_all_containers():
         except APIError as e:
             if '409 Client Error: Conflict' in e.message:
                 print "Container %s allready running on %s" % (container.name, container.stack.host)
+            else:
+                print "Error on container %s: %s" % (container.name, str(e))
     session.commit()
 # Tree operations
 def create_tree(endpoint, relations):
