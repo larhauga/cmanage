@@ -4,7 +4,7 @@
 # Script for defining base functions
 from sqlalchemy.exc import IntegrityError
 from terminaltables import AsciiTable
-from exceptions import NotImplementedError
+from exceptions import NotImplementedError, StandardError
 
 from lib import config as cfg
 from lib import init
@@ -15,10 +15,11 @@ from lib.stack import Stack
 from lib.container import Container
 from lib.endpoint import Endpoint
 #from lib.stage import Stage
-#import lib.lib_docker as docker
+import lib.lib_docker as docker
 
 config = cfg.get_config()
 logging = cfg.get_logger()
+rules = cfg.get_rules_config()
 
 session = init.init()
 
@@ -32,6 +33,8 @@ def create_service(name):
         name: unique
     """
     # HERE NEEDS CHECK OF STATE
+    # check if service exists (name)
+
     if not session.query(Service).filter(Service.name == name).first():
         try:
             s = Service(name)
@@ -41,6 +44,7 @@ def create_service(name):
             print('Port allready in use: %s' % str(e.orig))
             return None
     else:
+        print('Service already exists')
         return None
     return s
 
@@ -50,7 +54,7 @@ def get_service(name):
 
 def view_service(name):
     """Prints out information about one service based on its name"""
-    view_services(filterquery=session.query(Service).filter(Service.name == name))
+    view_services(filterquery=session.query(Service).filter(Service.name.like(name)))
 
 def view_services(filterquery=None):
     """Prints out list of services and its relevant information"""
@@ -128,15 +132,22 @@ def make_endpoint(service, name, publicport, stackpointer=None):
     e = Endpoint(name, service, publicport, stackpointer)
     return e
 
-def view_endpoint(endpointname):
+def view_endpoint(endpointname, obj=None):
     """Prints out a single endpoint"""
-    table_data = [['Endpoint name', 'ip', 'pubport', 'url', 'mainservice', 'tree']]
-    endpoint = session.query(Endpoint).filter(Endpoint.name == endpointname).first()
-    subtree = view_endpoint_tree(endpoint)
-    table_data.append([str(endpoint.name), str(endpoint.ip), str(endpoint.pubport), str(endpoint.url), str(endpoint.service.name), subtree])
-    tree = AsciiTable(table_data)
-    tree.inner_row_border = True
-    print tree.table
+    table_data = [['Endpoint name', 'ip', 'pubport', 'url', 'mainservice', 'stackpointer', 'tree']]
+    if not obj:
+        endpoint = session.query(Endpoint).filter(Endpoint.name.like(endpointname)).first()
+    else:
+        endpoint = obj
+    if endpoint:
+        print endpoint.get_state()
+        subtree = view_endpoint_tree(endpoint)
+        table_data.append([str(endpoint.name), str(endpoint.ip), str(endpoint.pubport), str(endpoint.url), str(endpoint.service.name), str(endpoint.stackpointer), subtree])
+        tree = AsciiTable(table_data)
+        tree.inner_row_border = True
+        print tree.table
+    else:
+        print "Endpoint not found"
 
 def view_endpoint_tree(endpoint):
     subtree_data = [['parent', 'child', 'stackposition']]
@@ -153,16 +164,65 @@ def view_endpoints():
         *sort by service
         *sort by stage
     """
-    table_data = [['Endpoint name', 'ip', 'pubport', 'url', 'mainservice', 'tree']]
+    table_data = [['Endpoint name', 'ip', 'pubport', 'url', 'mainservice', 'stackpointer', 'tree']]
     for endpoint in session.query(Endpoint).all():
         subtree = view_endpoint_tree(endpoint)
-        table_data.append([str(endpoint.name), str(endpoint.ip), str(endpoint.pubport), str(endpoint.url), str(endpoint.service.name), subtree])
+        table_data.append([str(endpoint.name), str(endpoint.ip), str(endpoint.pubport), str(endpoint.url), str(endpoint.service.name), str(endpoint.stackpointer), subtree])
     table = AsciiTable(table_data)
     table.inner_row_border = True
     print table.table
 
 
 # Container functions
+def create_containers(stack, versions):
+    """Initial function that creates containers
+    Enforces the state rules"""
+    containers = []
+    if not check_versions(stack, versions):
+        pass
+    if type(versions) == list:
+        if len(versions) < rules.getint('stack', 'min_containers'):
+            diff = rules.getint('stack', 'min_containers') - len(versions)
+            # Pushes the different versions on the stack
+            for version in versions:
+                containers.append(push_on_stack(stack, version))
+            # Padds with N versions to fill up stack according to constraint
+            for i in range(0, diff):
+                containers.append(push_on_stack(stack, versions[-1]))
+        else:
+            for version in versions:
+                containers.append(push_on_stack(stack, version))
+    else:
+        for i in range(0, rules.getint('stack', 'min_containers')):
+            containers.append(push_on_stack(stack, versions))
+
+    # Check if image exists on host
+    for container in containers:
+        if not docker.image_exists(container.stack.host, container.get_version()):
+            response = docker.pull_image(stack.host, stack.image, container.version)
+            if 'not found' in response:
+                print "Image not found. Rolling back containers"
+                session.rollback()
+                raise StandardError('Image not found. Reverting')
+            else:
+                print "Image %s:%s downloaded on %s" % (stack.image, container.version, stack.host)
+
+    for container in containers:
+        session.add(container)
+
+    session.commit()
+
+    for container in containers:
+        container.deploy_container()
+    session.commit()
+
+
+
+def check_versions(stack, versions):
+    existing = stack.get_versions()
+    # Find a way to compare versions
+    return True
+
 def push_on_stack(stack, version):
     """Push new version of a container on stack
     Arguments:
@@ -189,10 +249,10 @@ def pop(service, stack, position=0):
         for s in service.stacks:
             c = s.containers.pop(position)
             # HERE NEEDS DOCKER/HAPROXY
-            del c
+            session.delete(c)
     else:
         c = stack.containers.pop(position)
-        del c
+        session.delete(c)
 
     session.commit()
 
@@ -200,16 +260,44 @@ def replace(service, position, direction, stack=None):
     """Replaces a container on a stack, with neighbour
     Arguments:
         service: service object
-        position: position of stack to replace
+        position: position of stack to replace (arraypos 0-n)
         direction: which of the surrounding containers to copy
     kwargs:
         stack: name of stack, if only one stack
     """
     raise NotImplementedError()
-    if stack:
-        pass
+    # find the new version
+    containers = service.stacks[0].containers
+    version = containers[position+direction].version
+    # Create a new container that is not related to a stack yet
+    c = Container(None, version, image=service.stacks[0].image)
+    #for stack in service.stacks:
+        ## find the version
+    #if stack:
+        ##pass
 
+def view_containers():
+    services = session.query(Service).all()
+    containers = []
+    table = []
+    table.append(['Name', 'image', 'version', 'port'])
+    for service in services:
+        for stack in service.stacks:
+            for container in stack.container:
+                st = container.get_state()
+                table.append([str(st['name']), str(st['image']), str(st['version']), str(st['port'])])
 
+    t = AsciiTable(table)
+    t.inner_row_border = True
+    print t.table
+
+def remove_all_containers():
+    for container in session.query(Container).all():
+        container.remove_container()
+
+def deploy_all_containers():
+    for container in session.query(Container).all():
+        container.deploy_container()
 # Tree operations
 def create_tree(endpoint, relations):
     """Create tree from list of named dicts
