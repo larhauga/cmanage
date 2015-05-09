@@ -49,6 +49,62 @@ def new_endpoint(args):
             print "Endpoint not added: %s" % (e.message)
             basefunc.session.rollback()
 
+def connect(args):
+    """Connect two or more services together"""
+    pobj = []
+    cobj = []
+    endpoint = basefunc.get_endpoint(args.endpoint)
+    service = basefunc.get_service(args.service)
+
+    if endpoint and service:
+        # Find all parents and childs
+        for parent in args.parent:
+            pobj.append(basefunc.get_service(parent))
+        for child in args.child:
+            cobj.append(basefunc.get_service(child))
+        #parents.append()
+        try:
+            basefunc.add_relation(endpoint, service, pobj, cobj, args.stackpointer)
+        except IntegrityError as e:
+            print "Duplicate detected: %s" % e.message
+    else:
+        print "Endpoint (%s) or service (%s) not found" % (args.endpoint,
+                                                           args.service)
+
+    #create_tree
+
+def new_version(args):
+    """New version of container"""
+    # push + pop
+    # service
+    # for stack in service
+    # new version
+    # pop one?
+    # args.service
+    # args.version
+    service = basefunc.get_service(args.service)
+    containers = []
+    for stack in service.stacks:
+        ### CHECK CONSTRAINTS HERE. IN COMPLIANCE WITH VERSIONING?
+        print "Pushing new container with version %s on stack %s" % (args.version, stack.name)
+        containers.append(basefunc.push_on_stack(stack, args.version))
+
+    for container in containers:
+        container.deploy_container()
+
+    basefunc.session.add_all(containers)
+    basefunc.session.commit()
+
+
+def pop(args):
+    service = basefunc.get_service(args.service)
+    if service:
+        if args.single:
+            stack = service.stack[0]
+            print "Only poping on stack %s" % stack.name
+            basefunc.pop(service, stack, position=args.stackpointer)
+        else:
+            basefunc.pop(service, None, position=args.stackpointer)
 
 def view(args):
     #if 'help' in args.name:
@@ -76,6 +132,12 @@ def view(args):
 def delete(args):
     if 'containers' in args.type:
         basefunc.remove_all_containers()
+    else:
+        print "Not running. Argument %s not supported" % (args.type)
+
+def deploy(args):
+    if 'containers' in args.type:
+        basefunc.deploy_all_containers()
 
 def main(args):
     pass
@@ -94,7 +156,8 @@ if __name__ == '__main__':
                                                        'stacks', 'stack',
                                                         'containers'],
                              help='Different types of items to show')
-    parser_view.add_argument('-n', '--name', type=str,
+    #parser_view.add_argument('-n', '--name', type=str,
+    parser_view.add_argument('name', type=str, nargs='?',
                              help='Name of service. Use percent to search')
     parser_view.set_defaults(func=view)
 
@@ -114,21 +177,37 @@ if __name__ == '__main__':
                                      help='Default stack pointer for tree')
     parser_add_endpoint.set_defaults(func=new_endpoint)
 
+    parser_connect = subparser.add_parser('connect', description='Connect services')
+    parser_connect.add_argument('service', type=str, help='Service to connect')
+    parser_connect.add_argument('-p', '--parent', nargs='+', type=str, help='Parent service')
+    parser_connect.add_argument('-c', '--child', nargs='+', type=str, help='Childe service')
+    parser_connect.add_argument('-e', '--endpoint', type=str, help='Endpoint')
+    parser_connect.add_argument('-stp', '--stackpointer', type=int, help='Optional stack pointer')
+    parser_connect.set_defaults(func=connect)
+
+
+    parser_do_release = subparser.add_parser('release', description='Do a service release')
+    parser_do_release.add_argument('service', type=str, help='Service to do release on')
+    parser_do_release.add_argument('-v', '--version', type=str, required=True, help='Version of the new container')
+    parser_do_release.set_defaults(func=new_version)
+
+    parser_pop = subparser.add_parser('pop', description='Pop container from service')
+    parser_pop.add_argument('service', type=str, help='Service to pop container from')
+    parser_pop.add_argument('-stp', '--stackpointer', type=int, default=0, help='Which container to pop')
+    parser_pop.add_argument('-s', '--single', default=False, action='store_false', help='Remove from one stacks')
+    parser_pop.set_defaults(func=pop)
+
     parser_delete = subparser.add_parser('delete', description='Delete')
     parser_delete.add_argument('type', type=str, choices=['containers', 'services', 'stacks'])
     parser_delete.add_argument('-n', '--name', type=str,
                                help='Name of item to remove')
     parser_delete.set_defaults(func=delete)
 
-    #subsubadd.add_argument('name', type=str, help='Name of endpoint')
-    #subsubadd.add_argument('--port', type=int, help='Public port of endpoint')
-    #subsubadd.add_argument('--defaultpointer', type=int, help='Pointer on stack')
-    #image, versions, nrstacks
-
-    # Parameters needed for new service
-    #parser.add_argument('--pubport', type=int, help='Port of an endpoint')
-    #parser.add_argument('--stacks', type=int, default=1, help='Number of stacks a service should have')
-
+    parser_deploy = subparser.add_parser('deploy', description='Deploy')
+    parser_deploy.add_argument('type', type=str, choices=['containers'])
+    parser_deploy.add_argument('-n', '--name', type=str,
+                               help='Name of item to deploy')
+    parser_deploy.set_defaults(func=deploy)
     # Extra parameters for push on stack
     #parser.add_argument('-v', '--version', type=str,
                         #help='Versions of new containers. If containers > 1, this must be a list')
