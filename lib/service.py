@@ -80,6 +80,11 @@ class Service(Base):
             # No existing stacks
             return hosts[0]
 
+    def tree_on_stack_pointer(self, stackpointer):
+        for parent in self.parents:
+            if parent.stackpos == stackpointer:
+                return parent.endpoint
+        return None
 
 if __name__ == '__main__':
     s = Service("hest")
