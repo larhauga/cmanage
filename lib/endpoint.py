@@ -12,7 +12,7 @@ class Endpoint(Base):
     __tablename__ = 'endpoint'
 
     id = Column(Integer, primary_key = True)
-    name = Column(String)
+    name = Column(String, unique=True)
     ip = Column(String)
     pubport = Column(Integer, unique=True, nullable=False)
     url = Column(String)
@@ -26,8 +26,7 @@ class Endpoint(Base):
         self.name = "%s-endpoint-%s" % (service.name, name)
         self.service = service
         self.pubport = pubport
-        if stackpointer:
-            self.stackpointer = stackpointer
+        self.stackpointer = stackpointer
         self.stage = stage
 
     def get_state(self):
@@ -38,6 +37,7 @@ class Endpoint(Base):
         state['url'] = self.url
         state['stage'] = self.stage
         state['service'] = self.service.name
+        state['stackpointer'] = self.stackpointer
         return state
 
 
