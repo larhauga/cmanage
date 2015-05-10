@@ -60,11 +60,13 @@ def connect(args):
 
     if endpoint and service:
         # Find all parents and childs
-        for parent in args.parent:
-            pobj.append(basefunc.get_service(parent))
-        for child in args.child:
-            cobj.append(basefunc.get_service(child))
-        #parents.append()
+        if args.parent:
+            for parent in args.parent:
+                pobj.append(basefunc.get_service(parent))
+        if args.child:
+            for child in args.child:
+                cobj.append(basefunc.get_service(child))
+
         try:
             basefunc.add_relation(endpoint, service, pobj, cobj, args.stackpointer)
         except IntegrityError as e:
