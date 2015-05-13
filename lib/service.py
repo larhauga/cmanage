@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, text
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship, backref
 from exceptions import TypeError
 
@@ -9,6 +9,7 @@ containerconfig = cfg.get_container_config()
 
 import base
 Base = base.Base
+
 
 # http://docs.sqlalchemy.org/en/latest/orm/basic_relationships.html#association-pattern
 # http://stackoverflow.com/questions/25958963/self-referential-association-relationship-sqlalchemy
@@ -20,7 +21,6 @@ class Service_tree(Base):
     stackpos = Column(Integer)
     endpoint = relationship('Endpoint', backref=backref('service_tree'))
     port = Column(Integer)
-
 
     def __init__(self, parent, child, endpoint, stackpos=None):
         self.parent = parent
@@ -47,13 +47,15 @@ class Service(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False, unique=True)
-    parents = relationship('Service_tree', backref='child', primaryjoin=id==Service_tree.child_id)
-    childs = relationship('Service_tree', backref='parent', primaryjoin=id==Service_tree.parent_id)
-
-    stacks = relationship('Stack', backref=backref('service', order_by=id), cascade="delete")
+    parents = relationship('Service_tree', backref='child',
+                           primaryjoin=id == Service_tree.child_id)
+    childs = relationship('Service_tree', backref='parent',
+                          primaryjoin=id == Service_tree.parent_id)
+    stacks = relationship('Stack', cascade="delete",
+                          backref=backref('service', order_by=id))
     endpoints = relationship('Endpoint', backref=backref('service'))
 
-    def __init__(self, name): #, port):
+    def __init__(self, name):
         self.name = name
 
     def get_state(self):
