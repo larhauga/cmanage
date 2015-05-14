@@ -249,11 +249,6 @@ if __name__ == '__main__':
     parser_upversions.add_argument('service', type=str,
                                    help='The version to check versions on')
     parser_upversions.set_defaults(func=upstream)
-    # Extra parameters for push on stack
-    # parser.add_argument('-v', '--version', type=str,
-                        #help='Versions of new containers. If containers > 1, this must be a list')
 
     args = parser.parse_args()
     args.func(args)
-
-    main(args)
