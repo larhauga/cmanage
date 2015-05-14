@@ -35,7 +35,10 @@ def new_service(args):
         host = service.choose_host()
         stack = basefunc.create_stack(service, args.image, host)
         try:
-            basefunc.create_containers(stack, args.versions)
+            if basefunc.check_versions(None, args.versions):
+                basefunc.create_containers(stack, args.versions)
+            else:
+                print "Versions not in compliance with constraints"
         except StandardError as e:
             print e
 
