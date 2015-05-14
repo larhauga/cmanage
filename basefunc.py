@@ -3,6 +3,7 @@
 
 # Script for defining base functions
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 from terminaltables import AsciiTable
 from exceptions import NotImplementedError, StandardError
 
@@ -193,9 +194,10 @@ def view_endpoints():
 def switch_stackpointer(endpoint, service, newpointer):
     """Switch the pointer of an endpoint"""
     tree = session.query(Service_tree).filter(Service_tree.child == service,
-                                            Service_tree.endpoint == endpoint).first()
+                                    Service_tree.endpoint == endpoint).first()
     tree.stackpos = newpointer
     session.commit()
+
 
 # Container functions
 def create_containers(stack, versions):
@@ -229,7 +231,8 @@ def create_containers(stack, versions):
                 session.rollback()
                 raise StandardError('Image not found. Reverting')
             else:
-                print "Image %s:%s downloaded on %s" % (stack.image, container.version, stack.host)
+                print "Image %s:%s downloaded on %s" % \
+                    (stack.image, container.version, stack.host)
 
     for container in containers:
         session.add(container)
@@ -239,7 +242,6 @@ def create_containers(stack, versions):
     for container in containers:
         container.deploy_container()
     session.commit()
-
 
 
 def check_versions(stack, versions):
@@ -281,9 +283,9 @@ def push_on_stack(stack, version):
     Returns:
         the new container
     """
-    # Container(stack, version, image=None, name='app')
     c = Container(stack, version)
     return c
+
 
 def pop(service, stack, position=0):
     """Removes a container in the specific position
@@ -294,11 +296,13 @@ def pop(service, stack, position=0):
     """
     if not stack:
         for stack in service.stacks:
-            if len(stack.container) <= rules.getint('stack','min_containers'):
-                raise StandardError('Not enough containers on stack. Poping not compliant with rules')
+            if len(stack.container) <= rules.getint('stack', 'min_containers'):
+                raise StandardError('Not enough containers on stack. '
+                                    'Poping not compliant with rules')
     else:
         if len(stack.container) <= rules.getint('stack', 'min_containers'):
-            raise StandardError('Not enough containers on specified stack. Not compliant to pop')
+            raise StandardError('Not enough containers on specified stack. '
+                                'Not compliant to pop')
     # HERE NEEDS CONSTRAINTS CHECKING
     # HERE NEEDS HAPROXY INTEGRATION
 
@@ -335,31 +339,37 @@ def replace(service, position, direction, stack=None):
     #if stack:
         ##pass
 
+
 def view_containers():
     services = session.query(Service).all()
-    containers = []
     table = []
     table.append(['Name', 'image', 'version', 'port', 'containerid'])
     for service in services:
         for stack in service.stacks:
             for container in stack.container:
                 st = container.get_state()
-                table.append([str(st['name']), str(st['image']), str(st['version']), str(st['port']), str(st['containerid'])[0:15]])
+                table.append([str(st['name']), str(st['image']),
+                              str(st['version']), str(st['port']),
+                              str(st['containerid'])[0:15]])
 
     t = AsciiTable(table)
     t.inner_row_border = True
     print t.table
 
+
 def remove_all_containers():
     for container in session.query(Container).all():
         try:
-            print "Removing container %s from %s" % (container.name, container.stack.host)
+            print "Removing container %s from %s" % \
+                (container.name, container.stack.host)
             container.remove_container()
         except APIError as e:
             print e.message
             if 'Not Found' in e.message:
-                print "Container %s not found on host %s" % (container.name, container.stack.host)
+                print "Container %s not found on host %s" % \
+                    (container.name, container.stack.host)
     session.commit()
+
 
 def deploy_all_containers():
     for container in session.query(Container).all():
@@ -367,10 +377,13 @@ def deploy_all_containers():
             container.deploy_container()
         except APIError as e:
             if '409 Client Error: Conflict' in e.message:
-                print "Container %s allready running on %s" % (container.name, container.stack.host)
+                print "Container %s allready running on %s" % \
+                    (container.name, container.stack.host)
             else:
                 print "Error on container %s: %s" % (container.name, str(e))
     session.commit()
+
+
 # Tree operations
 def create_tree(endpoint, relations):
     """Create tree from list of named dicts
@@ -387,9 +400,11 @@ def create_tree(endpoint, relations):
     if type(relations) == str:
         relations = eval(relations)
     for item in relations:
-        tree_node = Service_tree(item['parent'], item['child'], e)
+        tree_node = Service_tree(item['parent'], item['child'], e,
+                                 next_pointerport())
         session.add(tree_node)
     session.commit()
+
 
 def add_relation(endpoint, service, parents, childs, stackpointer):
     """Create a new relation in a service tree based on service
@@ -402,14 +417,23 @@ def add_relation(endpoint, service, parents, childs, stackpointer):
     # Handle parents
     trees = []
     for parent in parents:
-        trees.append(Service_tree(parent, service, endpoint, stackpointer))
+        trees.append(Service_tree(parent, service, endpoint,
+                                  next_pointerport(), stackpointer))
     for child in childs:
-        trees.append(Service_tree(service, child, endpoint, stackpointer))
+        trees.append(Service_tree(service, child, endpoint,
+                                  next_pointerport(), stackpointer))
 
     session.add_all(trees)
     session.commit()
     # HAndle childs
 
+
+def next_pointerport():
+    curpointerport = session.query(func.max(Service_tree.port)).scalar()
+    if curpointerport:
+        return curpointerport + 1
+    else:
+        return config.getint('service', 'portstart')
 
 def view_tree(service):
     """Shows a tree"""
