@@ -243,33 +243,35 @@ def create_containers(stack, versions):
 
 
 def check_versions(stack, versions):
-    existing = stack.get_versions()
     vconf = rules.get('stack', 'versions').split(',')
-    if type(versions) == list:
+    if not stack:
+        v = versions
+    elif type(versions) == list:
+        existing = stack.get_versions()
         v = existing + versions
     else:
+        existing = stack.get_versions()
         v = existing + [versions]
 
+    if len(v) == 1:
+        return True
     ok = False
-    for i,ver in enumerate(v):
-        if not i == 0:
-            if 'incremental' in vconf and 'equal' in vconf:
-                if 'latest' in ver:
-                    ok = True
-                elif ver > v[i-1]:
-                    ok = True
-                elif ver >= v[i-1]:
-                    ok = True
-                else:
-                    ok = False
-            elif 'incremental' in vconf and not ver > v[i-1]:
-                return False
-            elif 'equal' in vconf and not ver == v[i-1]:
-                return False
-            elif 'all':
-                return True
+    for i, ver in enumerate(v):
+        if i == 0:
+            continue
+        if 'incremental' in vconf and 'equal' in vconf:
+            if 'latest' in ver or ver >= v[i-1]:
+                ok = True
+            else:
+                ok = False
+        elif 'incremental' in vconf and not ver > v[i-1]:
+            return False
+        elif 'equal' in vconf and not ver == v[i-1]:
+            return False
+        elif 'all':
+            return True
     return ok
-    #return True
+
 
 def push_on_stack(stack, version):
     """Push new version of a container on stack
