@@ -106,8 +106,11 @@ def image_exists(host, imagetag):
         false: does not exist
     """
     images = connections[host].images()
+    upstreamtag = "docker.io/%s" % imagetag
     for image in images:
         if imagetag in image['RepoTags']:
+            return True
+        elif upstreamtag in image['RepoTags']:
             return True
     return False
 

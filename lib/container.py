@@ -75,7 +75,8 @@ class Container(Base):
         return state
 
     def deploy_container(self, output=True):
-        if docker.image_exists(self.stack.host, self.get_version()):
+        check = docker.image_exists(self.stack.host, self.get_version())
+        if not check:
             docker.pull_image(self.stack.host, self.image, self.version)
 
         c = docker.create_container(self.stack.host, self)
