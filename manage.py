@@ -85,9 +85,14 @@ def new_version(args):
     service = basefunc.get_service(args.service)
     containers = []
     for stack in service.stacks:
-        ### CHECK CONSTRAINTS HERE. IN COMPLIANCE WITH VERSIONING?
-        print "Pushing new container with version %s on stack %s" % (args.version, stack.name)
-        containers.append(basefunc.push_on_stack(stack, args.version))
+        # Checking constraint of versioning
+        if basefunc.check_versions(stack, args.version):
+            print "Pushing new container with version %s on stack %s" % \
+                (args.version, stack.name)
+            containers.append(basefunc.push_on_stack(stack, args.version))
+        else:
+            print "Versioning not in compliance with constraints"
+            return
 
     for container in containers:
         container.deploy_container()
