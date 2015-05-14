@@ -20,9 +20,9 @@ class Service_tree(Base):
     endpoint_id = Column(Integer, ForeignKey('endpoint.id'), primary_key=True)
     stackpos = Column(Integer)
     endpoint = relationship('Endpoint', backref=backref('service_tree'))
-    port = Column(Integer)
+    port = Column(Integer, unique=True)
 
-    def __init__(self, parent, child, endpoint, stackpos=None):
+    def __init__(self, parent, child, endpoint, port, stackpos=None):
         self.parent = parent
         self.child = child
         self.endpoint = endpoint
@@ -32,6 +32,7 @@ class Service_tree(Base):
             self.stackpos = endpoint.stackpointer
         elif not stackpos and not endpoint.stackpointer:
             raise TypeError('stackpos not set')
+        self.port = port
 
     def get_state(self):
         state = {}
