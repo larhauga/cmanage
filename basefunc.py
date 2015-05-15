@@ -303,12 +303,12 @@ def pop(service, stack, position=0):
         if len(stack.container) <= rules.getint('stack', 'min_containers'):
             raise StandardError('Not enough containers on specified stack. '
                                 'Not compliant to pop')
-    # HERE NEEDS CONSTRAINTS CHECKING
-    # HERE NEEDS HAPROXY INTEGRATION
+
+    # HAPROXY INTEGRATION NEEDED HERE
 
     if not stack:
         for s in service.stacks:
-            c = s.containers.pop(position)
+            c = s.container[position]
             # HERE NEEDS DOCKER/HAPROXY
             c.remove_container()
             session.delete(c)
