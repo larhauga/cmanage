@@ -3,9 +3,9 @@
 
 # Integration to HAProxy
 import basefunc
-from lib.service import Service, Service_tree
+from lib.service import Service_tree
 from lib.endpoint import Endpoint
-from haproxy.haproxy import HAproxy
+from lib.haproxy.haproxy import HAproxy
 from lib import config as cfg
 containerconfig = cfg.get_container_config()
 containerhostnames = containerconfig.get('main', 'hostnames').split(',')
