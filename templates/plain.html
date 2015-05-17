@@ -1,0 +1,124 @@
+{% extends "common/base.html" %}
+
+{% block title %}Service management{% endblock %}
+
+{% block main %}
+<script type="text/javascript">
+function deployall(){
+    alert("hi");
+
+}
+function deleteall(){
+}
+</script>
+<!--<style>-->
+<!--.cssanimations .stream-live-animation {-->
+  <!--display: block;-->
+  <!--height: 16px;-->
+  <!--width: 16px;-->
+  <!--border-top-left-radius: 16px;-->
+  <!--border-top-right-radius: 16px;-->
+  <!--border-bottom-left-radius: 16px;-->
+  <!--border-bottom-right-radius: 16px;-->
+  <!--border-radius: 16px;-->
+  <!--padding: 0;-->
+  <!--border: 5px solid #b01;-->
+  <!--float: left;-->
+  <!--position: absolute;-->
+  <!--left: -7px;-->
+  <!---webkit-animation: stream-live-animation 1.9s infinite ease-out;-->
+  <!---webkit-transform: scale(.1,.1);-->
+  <!---moz-transform: scale(.1,.1);-->
+  <!---moz-animation: stream-live-animation 1.9s infinite ease-out;-->
+<!--}-->
+<!--.cssanimations .stream-live-animation-dot {-->
+  <!--display: block;-->
+  <!--position: absolute;-->
+  <!--top: 11px;-->
+  <!--left: 4px;-->
+  <!--height: 4px;-->
+  <!--width: 4px;-->
+  <!--border-top-left-radius: 4px;-->
+  <!--border-top-right-radius: 4px;-->
+  <!--border-bottom-left-radius: 4px;-->
+  <!--border-bottom-right-radius: 4px;-->
+  <!--border-radius: 4px;-->
+  <!--background-color: #b01;-->
+<!--}-->
+<!--.stream-pulse {-->
+  <!--top: -4px;-->
+  <!--left: 7px;-->
+<!--}-->
+<!--.stream-pulse {-->
+  <!--height: 18px;-->
+  <!--width: 18px;-->
+  <!--position: absolute;-->
+  <!--display: block;-->
+<!--}-->
+
+<!--</style>-->
+
+<!-- Main row -->
+<div class="row">
+    <h1>Services 
+        <button type="button" class="btn btn-primary" onclick="deployall();">Deploy</button>
+        <button type="button" class="btn btn-primary" onclick="deleteall();">Delete</button></h1>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Stacks</th>
+            <th>Containers</th>
+            <th>Parents</th>
+            <th>Childs</th>
+            <th>Endpoints</th>
+        </tr>
+    </thead>
+    {% for key, value in data.iteritems() %}
+        <tr>
+            <td><b>{{key}}</b></td>
+            <td>
+            {% for item in value.stacks %}
+                {{item.name}}</br>
+            {% endfor %}
+        </td>
+        <td>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Version</th>
+                        <th>Port</th>
+                    </tr>
+                </thead>
+                {% for stack in value.stacks %}
+                {% for container in stack.container %}
+                <tr>
+                    <td>{{container.name}}</td> <td>{{container.version}}</td> <td>{{container.port}}</td>
+                </tr>
+                {% endfor %}
+                {% endfor %}
+            </table>
+
+        </td>
+        <td>{% for item in value.parent %}
+            {{item.parent}}</br>
+            {% endfor %}
+            </td>
+        <td>{% for item in value.childs %}
+            {{item.child}}</br>
+            {% endfor %}
+            </td>
+        <td>{% for item in value.endpoints%}
+            {{item}}</br>
+            {% endfor %}
+            </td>
+        </tr>
+    {% endfor %}
+</table>
+</div>
+
+</div>
+
+
+{% endblock %}

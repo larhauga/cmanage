@@ -1,0 +1,50 @@
+  <!-- nav bar content -->
+<nav class="navbar navbar-static-top navbar-inverse" role="navigation">
+  <div class="navcontainer container">
+    <!-- Brand and toggle get grouped for better mobile display -->
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"><a href="#">Test</a></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="/">Service management</a>
+    </div>
+
+    <div class="collapse navbar-collapse" id="bs-example-navbar-collapse">
+
+      <ul class="nav navbar-nav pull-left">
+        <li><a href="/" class="navbar-brand"><div id="klokke"></div></a></li>
+
+        <li><a href="/">Show</a></li>
+        <li><a href="/"></a></li>
+        <!--<li><a href="/">Signup</a></li>-->
+      </ul>
+    </div>
+
+  </div>
+    <script type="text/javascript">
+        function klokke(){
+            var date =new Date();
+            var time = date.getHours();
+            var min = date.getMinutes();
+            var sec = date.getSeconds();
+
+            time = padding(time);
+            min = padding(min);
+            sec = padding(sec);
+
+            document.getElementById("klokke").innerHTML = time + ":" + min + ":" + sec;
+        setTimeout(function(){klokke()}, 500);
+        }
+        function padding(i){
+            if(i<10){
+                i = "0" + i;
+            }
+            return i;
+        }
+        window.onload = klokke();
+    </script>
+
+</nav>
